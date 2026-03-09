@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useEffect, useRef } from "react";
@@ -168,6 +169,28 @@ export default function RoomPage() {
 
   }
 
+  // 📞 Hangup Call
+  function hangUp() {
+
+    // Close peer connections
+    Object.values(peerConnections.current).forEach((pc) => {
+      pc.close();
+    });
+
+    peerConnections.current = {};
+
+    // Stop camera & mic
+    if (localStream.current) {
+      localStream.current.getTracks().forEach(track => track.stop());
+    }
+
+    // Disconnect socket
+    socket.disconnect();
+
+    // Redirect home
+    window.location.href = "/";
+  }
+
   return (
     <div className="p-6">
 
@@ -208,6 +231,15 @@ export default function RoomPage() {
           className="px-4 py-2 bg-blue-500 text-white rounded"
         >
           Toggle Camera
+        </button>
+
+        {/* Hangup Button */}
+        <button
+          onClick={hangUp}
+          data-test-id="hangup-button"
+          className="px-4 py-2 bg-black text-white rounded"
+        >
+          Hang Up
         </button>
 
       </div>
