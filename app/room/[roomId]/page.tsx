@@ -1,3 +1,5 @@
+
+
 "use client";
 
 import { useEffect, useRef } from "react";
@@ -9,45 +11,146 @@ const socket = io();
 export default function RoomPage() {
 
   const { roomId } = useParams();
+
   const localVideoRef = useRef<HTMLVideoElement>(null);
+  const remoteContainerRef = useRef<HTMLDivElement>(null);
+
+  const localStream = useRef<MediaStream | null>(null);
+  const peerConnections = useRef<Record<string, RTCPeerConnection>>({});
 
   useEffect(() => {
 
-    async function startCamera() {
+    async function start() {
 
       const stream = await navigator.mediaDevices.getUserMedia({
         video: true,
         audio: true
       });
 
+      localStream.current = stream;
+
       if (localVideoRef.current) {
         localVideoRef.current.srcObject = stream;
       }
 
       socket.emit("join-room", roomId);
-
     }
 
-    startCamera();
+    start();
+
+    socket.on("user-joined", async (userId) => {
+
+      const pc = createPeerConnection(userId);
+      peerConnections.current[userId] = pc;
+
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+
+      socket.emit("offer", {
+        offer,
+        to: userId
+      });
+
+    });
+
+    socket.on("offer", async ({ offer, from }) => {
+
+      const pc = createPeerConnection(from);
+      peerConnections.current[from] = pc;
+
+      await pc.setRemoteDescription(new RTCSessionDescription(offer));
+
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+
+      socket.emit("answer", {
+        answer,
+        to: from
+      });
+
+    });
+
+    socket.on("answer", async ({ answer, from }) => {
+
+      const pc = peerConnections.current[from];
+      await pc.setRemoteDescription(new RTCSessionDescription(answer));
+
+    });
+
+    socket.on("ice-candidate", async ({ candidate, from }) => {
+
+      const pc = peerConnections.current[from];
+
+      if (pc) {
+        await pc.addIceCandidate(new RTCIceCandidate(candidate));
+      }
+
+    });
 
   }, []);
+
+  function createPeerConnection(userId: string) {
+
+    const pc = new RTCPeerConnection({
+      iceServers: [
+        {
+          urls: "stun:stun.l.google.com:19302"
+        }
+      ]
+    });
+
+    localStream.current?.getTracks().forEach(track => {
+      pc.addTrack(track, localStream.current!);
+    });
+
+  pc.ontrack = (event) => {
+
+  if (document.getElementById(userId)) return;
+
+  const video = document.createElement("video");
+
+  video.id = userId;
+  video.srcObject = event.streams[0];
+  video.autoplay = true;
+  video.playsInline = true;
+  video.className = "w-64 border";
+
+  remoteContainerRef.current?.appendChild(video);
+
+};
+
+    pc.onicecandidate = (event) => {
+
+      if (event.candidate) {
+
+        socket.emit("ice-candidate", {
+          candidate: event.candidate,
+          to: userId
+        });
+
+      }
+
+    };
+
+    return pc;
+  }
 
   return (
     <div className="p-6">
 
-      <h2 data-test-id="status-waiting">
-        Waiting for others...
-      </h2>
+      <h2>Waiting for others...</h2>
 
       <video
-        data-test-id="local-video"
         ref={localVideoRef}
         autoPlay
         muted
         className="w-96 border"
       />
 
-      <div data-test-id="remote-video-container"></div>
+      <div
+        ref={remoteContainerRef}
+        className="flex gap-4 mt-4"
+      />
 
     </div>
   );
