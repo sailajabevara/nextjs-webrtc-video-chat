@@ -17,10 +17,10 @@ export default function RoomPage() {
   const localStream = useRef<MediaStream | null>(null);
   const peerConnections = useRef<Record<string, RTCPeerConnection>>({});
 
-  const isMuted = useRef(false);
-
-  // ⭐ NEW STATUS STATE
   const [status, setStatus] = useState("waiting");
+  const [messages, setMessages] = useState<string[]>([]);
+  const [input, setInput] = useState("");
+  const [isMuted, setIsMuted] = useState(false);
 
   useEffect(() => {
 
@@ -38,6 +38,7 @@ export default function RoomPage() {
       }
 
       socket.emit("join-room", roomId);
+
     }
 
     start();
@@ -93,6 +94,29 @@ export default function RoomPage() {
         await pc.addIceCandidate(new RTCIceCandidate(candidate));
       }
 
+    });
+
+    socket.on("user-disconnected", (userId) => {
+
+      const pc = peerConnections.current[userId];
+
+      if (pc) {
+        pc.close();
+        delete peerConnections.current[userId];
+      }
+
+      const video = document.getElementById(userId);
+
+      if (video) {
+        video.remove();
+      }
+
+      setStatus("waiting");
+
+    });
+
+    socket.on("chat-message", ({ message }) => {
+      setMessages((prev) => [...prev, message]);
     });
 
   }, []);
@@ -155,9 +179,7 @@ export default function RoomPage() {
 
     audioTrack.enabled = !audioTrack.enabled;
 
-    console.log("Mic Enabled:", audioTrack.enabled);
-
-    isMuted.current = !audioTrack.enabled;
+    setIsMuted(!audioTrack.enabled);
 
   }
 
@@ -170,8 +192,6 @@ export default function RoomPage() {
     if (!videoTrack) return;
 
     videoTrack.enabled = !videoTrack.enabled;
-
-    console.log("Camera Enabled:", videoTrack.enabled);
 
   }
 
@@ -190,12 +210,27 @@ export default function RoomPage() {
     socket.disconnect();
 
     window.location.href = "/";
+
+  }
+
+  function sendMessage() {
+
+    if (!input.trim()) return;
+
+    socket.emit("chat-message", {
+      roomId,
+      message: input
+    });
+
+    setMessages((prev) => [...prev, input]);
+
+    setInput("");
+
   }
 
   return (
     <div className="p-6">
 
-      {/* ⭐ STATUS UI */}
       {status === "waiting" && (
         <h2 data-test-id="status-waiting">Waiting for others...</h2>
       )}
@@ -229,7 +264,7 @@ export default function RoomPage() {
           data-test-id="mute-mic-button"
           className="px-4 py-2 bg-red-500 text-white rounded"
         >
-          Toggle Mic
+          {isMuted ? "Unmute Mic" : "Mute Mic"}
         </button>
 
         <button
@@ -247,6 +282,41 @@ export default function RoomPage() {
         >
           Hang Up
         </button>
+
+      </div>
+
+      <div className="mt-6">
+
+        <div
+          data-test-id="chat-log"
+          className="border p-2 h-40 overflow-y-auto"
+        >
+          {messages.map((msg, i) => (
+            <div key={i} data-test-id="chat-message">
+              {msg}
+            </div>
+          ))}
+        </div>
+
+        <div className="flex mt-2 gap-2">
+
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            data-test-id="chat-input"
+            className="border p-2 flex-1"
+            placeholder="Type message..."
+          />
+
+          <button
+            onClick={sendMessage}
+            data-test-id="chat-submit"
+            className="px-4 py-2 bg-green-500 text-white rounded"
+          >
+            Send
+          </button>
+
+        </div>
 
       </div>
 

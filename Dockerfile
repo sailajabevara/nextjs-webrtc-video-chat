@@ -8,6 +8,8 @@ RUN npm install
 
 COPY . .
 
+RUN npm install -g ts-node typescript
+
 EXPOSE 3000
 
-CMD ["npm","run","dev"]
+CMD ["npx","ts-node","--transpile-only","server.ts"]
