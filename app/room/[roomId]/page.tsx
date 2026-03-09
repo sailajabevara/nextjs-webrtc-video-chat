@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useEffect, useRef } from "react";
@@ -17,6 +16,8 @@ export default function RoomPage() {
 
   const localStream = useRef<MediaStream | null>(null);
   const peerConnections = useRef<Record<string, RTCPeerConnection>>({});
+
+  const isMuted = useRef(false);
 
   useEffect(() => {
 
@@ -103,21 +104,21 @@ export default function RoomPage() {
       pc.addTrack(track, localStream.current!);
     });
 
-  pc.ontrack = (event) => {
+    pc.ontrack = (event) => {
 
-  if (document.getElementById(userId)) return;
+      if (document.getElementById(userId)) return;
 
-  const video = document.createElement("video");
+      const video = document.createElement("video");
 
-  video.id = userId;
-  video.srcObject = event.streams[0];
-  video.autoplay = true;
-  video.playsInline = true;
-  video.className = "w-64 border";
+      video.id = userId;
+      video.srcObject = event.streams[0];
+      video.autoplay = true;
+      video.playsInline = true;
+      video.className = "w-64 border";
 
-  remoteContainerRef.current?.appendChild(video);
+      remoteContainerRef.current?.appendChild(video);
 
-};
+    };
 
     pc.onicecandidate = (event) => {
 
@@ -135,22 +136,52 @@ export default function RoomPage() {
     return pc;
   }
 
+  // 🎤 Toggle microphone
+  function toggleMute() {
+
+    if (!localStream.current) return;
+
+    const audioTrack = localStream.current.getAudioTracks()[0];
+
+    if (!audioTrack) return;
+
+    audioTrack.enabled = !audioTrack.enabled;
+
+    console.log("Mic Enabled:", audioTrack.enabled);
+
+    isMuted.current = !audioTrack.enabled;
+
+  }
+
   return (
     <div className="p-6">
 
-      <h2>Waiting for others...</h2>
+      <h2 data-test-id="status-waiting">Waiting for others...</h2>
 
+      {/* Local Video */}
       <video
         ref={localVideoRef}
         autoPlay
         muted
         className="w-96 border"
+        data-test-id="local-video"
       />
 
+      {/* Remote Videos */}
       <div
         ref={remoteContainerRef}
         className="flex gap-4 mt-4"
+        data-test-id="remote-video-container"
       />
+
+      {/* Mic Button */}
+      <button
+        onClick={toggleMute}
+        data-test-id="mute-mic-button"
+        className="mt-4 px-4 py-2 bg-red-500 text-white rounded"
+      >
+        Toggle Mic
+      </button>
 
     </div>
   );
