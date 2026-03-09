@@ -153,6 +153,21 @@ export default function RoomPage() {
 
   }
 
+  // 📷 Toggle camera
+  function toggleCamera() {
+
+    if (!localStream.current) return;
+
+    const videoTrack = localStream.current.getVideoTracks()[0];
+
+    if (!videoTrack) return;
+
+    videoTrack.enabled = !videoTrack.enabled;
+
+    console.log("Camera Enabled:", videoTrack.enabled);
+
+  }
+
   return (
     <div className="p-6">
 
@@ -174,14 +189,28 @@ export default function RoomPage() {
         data-test-id="remote-video-container"
       />
 
-      {/* Mic Button */}
-      <button
-        onClick={toggleMute}
-        data-test-id="mute-mic-button"
-        className="mt-4 px-4 py-2 bg-red-500 text-white rounded"
-      >
-        Toggle Mic
-      </button>
+      {/* Controls */}
+      <div className="mt-4 flex gap-4">
+
+        {/* Mic Button */}
+        <button
+          onClick={toggleMute}
+          data-test-id="mute-mic-button"
+          className="px-4 py-2 bg-red-500 text-white rounded"
+        >
+          Toggle Mic
+        </button>
+
+        {/* Camera Button */}
+        <button
+          onClick={toggleCamera}
+          data-test-id="toggle-camera-button"
+          className="px-4 py-2 bg-blue-500 text-white rounded"
+        >
+          Toggle Camera
+        </button>
+
+      </div>
 
     </div>
   );
