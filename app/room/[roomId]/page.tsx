@@ -1,8 +1,7 @@
 
-
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { io } from "socket.io-client";
 
@@ -19,6 +18,9 @@ export default function RoomPage() {
   const peerConnections = useRef<Record<string, RTCPeerConnection>>({});
 
   const isMuted = useRef(false);
+
+  // ⭐ NEW STATUS STATE
+  const [status, setStatus] = useState("waiting");
 
   useEffect(() => {
 
@@ -42,6 +44,8 @@ export default function RoomPage() {
 
     socket.on("user-joined", async (userId) => {
 
+      setStatus("connecting");
+
       const pc = createPeerConnection(userId);
       peerConnections.current[userId] = pc;
 
@@ -56,6 +60,8 @@ export default function RoomPage() {
     });
 
     socket.on("offer", async ({ offer, from }) => {
+
+      setStatus("connecting");
 
       const pc = createPeerConnection(from);
       peerConnections.current[from] = pc;
@@ -107,6 +113,8 @@ export default function RoomPage() {
 
     pc.ontrack = (event) => {
 
+      setStatus("connected");
+
       if (document.getElementById(userId)) return;
 
       const video = document.createElement("video");
@@ -137,7 +145,6 @@ export default function RoomPage() {
     return pc;
   }
 
-  // 🎤 Toggle microphone
   function toggleMute() {
 
     if (!localStream.current) return;
@@ -154,7 +161,6 @@ export default function RoomPage() {
 
   }
 
-  // 📷 Toggle camera
   function toggleCamera() {
 
     if (!localStream.current) return;
@@ -169,34 +175,39 @@ export default function RoomPage() {
 
   }
 
-  // 📞 Hangup Call
   function hangUp() {
 
-    // Close peer connections
     Object.values(peerConnections.current).forEach((pc) => {
       pc.close();
     });
 
     peerConnections.current = {};
 
-    // Stop camera & mic
     if (localStream.current) {
       localStream.current.getTracks().forEach(track => track.stop());
     }
 
-    // Disconnect socket
     socket.disconnect();
 
-    // Redirect home
     window.location.href = "/";
   }
 
   return (
     <div className="p-6">
 
-      <h2 data-test-id="status-waiting">Waiting for others...</h2>
+      {/* ⭐ STATUS UI */}
+      {status === "waiting" && (
+        <h2 data-test-id="status-waiting">Waiting for others...</h2>
+      )}
 
-      {/* Local Video */}
+      {status === "connecting" && (
+        <h2 data-test-id="status-connecting">Connecting...</h2>
+      )}
+
+      {status === "connected" && (
+        <h2 data-test-id="status-connected">Connected</h2>
+      )}
+
       <video
         ref={localVideoRef}
         autoPlay
@@ -205,17 +216,14 @@ export default function RoomPage() {
         data-test-id="local-video"
       />
 
-      {/* Remote Videos */}
       <div
         ref={remoteContainerRef}
         className="flex gap-4 mt-4"
         data-test-id="remote-video-container"
       />
 
-      {/* Controls */}
       <div className="mt-4 flex gap-4">
 
-        {/* Mic Button */}
         <button
           onClick={toggleMute}
           data-test-id="mute-mic-button"
@@ -224,7 +232,6 @@ export default function RoomPage() {
           Toggle Mic
         </button>
 
-        {/* Camera Button */}
         <button
           onClick={toggleCamera}
           data-test-id="toggle-camera-button"
@@ -233,7 +240,6 @@ export default function RoomPage() {
           Toggle Camera
         </button>
 
-        {/* Hangup Button */}
         <button
           onClick={hangUp}
           data-test-id="hangup-button"
