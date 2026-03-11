@@ -1,3 +1,5 @@
+
+
 FROM node:18
 
 WORKDIR /app
@@ -8,8 +10,6 @@ RUN npm install
 
 COPY . .
 
-RUN npm install -g ts-node typescript
-
 EXPOSE 3000
 
-CMD ["npx","ts-node","--transpile-only","server.ts"]
+CMD ["npm","run","dev"]

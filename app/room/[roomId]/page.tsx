@@ -8,7 +8,6 @@ import { io } from "socket.io-client";
 const socket = io();
 
 export default function RoomPage() {
-
   const { roomId } = useParams();
 
   const localVideoRef = useRef<HTMLVideoElement>(null);
@@ -23,12 +22,10 @@ export default function RoomPage() {
   const [isMuted, setIsMuted] = useState(false);
 
   useEffect(() => {
-
     async function start() {
-
       const stream = await navigator.mediaDevices.getUserMedia({
         video: true,
-        audio: true
+        audio: true,
       });
 
       localStream.current = stream;
@@ -38,13 +35,11 @@ export default function RoomPage() {
       }
 
       socket.emit("join-room", roomId);
-
     }
 
     start();
 
     socket.on("user-joined", async (userId) => {
-
       setStatus("connecting");
 
       const pc = createPeerConnection(userId);
@@ -53,15 +48,10 @@ export default function RoomPage() {
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
 
-      socket.emit("offer", {
-        offer,
-        to: userId
-      });
-
+      socket.emit("offer", { offer, to: userId });
     });
 
     socket.on("offer", async ({ offer, from }) => {
-
       setStatus("connecting");
 
       const pc = createPeerConnection(from);
@@ -72,32 +62,22 @@ export default function RoomPage() {
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
 
-      socket.emit("answer", {
-        answer,
-        to: from
-      });
-
+      socket.emit("answer", { answer, to: from });
     });
 
     socket.on("answer", async ({ answer, from }) => {
-
       const pc = peerConnections.current[from];
       await pc.setRemoteDescription(new RTCSessionDescription(answer));
-
     });
 
     socket.on("ice-candidate", async ({ candidate, from }) => {
-
       const pc = peerConnections.current[from];
-
       if (pc) {
         await pc.addIceCandidate(new RTCIceCandidate(candidate));
       }
-
     });
 
     socket.on("user-disconnected", (userId) => {
-
       const pc = peerConnections.current[userId];
 
       if (pc) {
@@ -106,37 +86,26 @@ export default function RoomPage() {
       }
 
       const video = document.getElementById(userId);
-
-      if (video) {
-        video.remove();
-      }
+      if (video) video.remove();
 
       setStatus("waiting");
-
     });
 
     socket.on("chat-message", ({ message }) => {
       setMessages((prev) => [...prev, message]);
     });
-
   }, []);
 
   function createPeerConnection(userId: string) {
-
     const pc = new RTCPeerConnection({
-      iceServers: [
-        {
-          urls: "stun:stun.l.google.com:19302"
-        }
-      ]
+      iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
     });
 
-    localStream.current?.getTracks().forEach(track => {
+    localStream.current?.getTracks().forEach((track) => {
       pc.addTrack(track, localStream.current!);
     });
 
     pc.ontrack = (event) => {
-
       setStatus("connected");
 
       if (document.getElementById(userId)) return;
@@ -147,179 +116,206 @@ export default function RoomPage() {
       video.srcObject = event.streams[0];
       video.autoplay = true;
       video.playsInline = true;
-      video.className = "w-64 border";
+
+      video.style.width = "300px";
+      video.style.borderRadius = "10px";
+      video.style.border = "2px solid black";
 
       remoteContainerRef.current?.appendChild(video);
-
     };
 
     pc.onicecandidate = (event) => {
-
       if (event.candidate) {
-
         socket.emit("ice-candidate", {
           candidate: event.candidate,
-          to: userId
+          to: userId,
         });
-
       }
-
     };
 
     return pc;
   }
 
   function toggleMute() {
-
     if (!localStream.current) return;
 
     const audioTrack = localStream.current.getAudioTracks()[0];
-
     if (!audioTrack) return;
 
     audioTrack.enabled = !audioTrack.enabled;
-
     setIsMuted(!audioTrack.enabled);
-
   }
 
   function toggleCamera() {
-
     if (!localStream.current) return;
 
     const videoTrack = localStream.current.getVideoTracks()[0];
-
     if (!videoTrack) return;
 
     videoTrack.enabled = !videoTrack.enabled;
-
   }
 
   function hangUp() {
-
-    Object.values(peerConnections.current).forEach((pc) => {
-      pc.close();
-    });
+    Object.values(peerConnections.current).forEach((pc) => pc.close());
 
     peerConnections.current = {};
 
     if (localStream.current) {
-      localStream.current.getTracks().forEach(track => track.stop());
+      localStream.current.getTracks().forEach((track) => track.stop());
     }
 
     socket.disconnect();
-
     window.location.href = "/";
-
   }
 
   function sendMessage() {
-
     if (!input.trim()) return;
 
     socket.emit("chat-message", {
       roomId,
-      message: input
+      message: input,
     });
 
     setMessages((prev) => [...prev, input]);
-
     setInput("");
-
   }
 
   return (
-    <div className="p-6">
-
-      {status === "waiting" && (
-        <h2 data-test-id="status-waiting">Waiting for others...</h2>
-      )}
-
-      {status === "connecting" && (
-        <h2 data-test-id="status-connecting">Connecting...</h2>
-      )}
-
-      {status === "connected" && (
-        <h2 data-test-id="status-connected">Connected</h2>
-      )}
-
-      <video
-        ref={localVideoRef}
-        autoPlay
-        muted
-        className="w-96 border"
-        data-test-id="local-video"
-      />
+    <div
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "#f3f4f6",
+        fontFamily: "Arial",
+      }}
+    >
+      <h2 style={{ marginBottom: "20px" }}>
+        {status === "waiting" && "Waiting for others..."}
+        {status === "connecting" && "Connecting..."}
+        {status === "connected" && "Connected"}
+      </h2>
 
       <div
-        ref={remoteContainerRef}
-        className="flex gap-4 mt-4"
-        data-test-id="remote-video-container"
-      />
+        style={{
+          display: "flex",
+          gap: "20px",
+          marginBottom: "20px",
+          flexWrap: "wrap",
+          justifyContent: "center",
+        }}
+      >
+        <video
+          ref={localVideoRef}
+          autoPlay
+          muted
+          style={{
+            width: "300px",
+            borderRadius: "10px",
+            border: "2px solid black",
+          }}
+        />
 
-      <div className="mt-4 flex gap-4">
+        <div ref={remoteContainerRef} style={{ display: "flex", gap: "20px" }} />
+      </div>
 
+      <div style={{ display: "flex", gap: "15px", marginBottom: "20px" }}>
         <button
           onClick={toggleMute}
-          data-test-id="mute-mic-button"
-          className="px-4 py-2 bg-red-500 text-white rounded"
+          style={{
+            padding: "10px 20px",
+            background: "#ef4444",
+            color: "white",
+            border: "none",
+            borderRadius: "6px",
+            cursor: "pointer",
+          }}
         >
           {isMuted ? "Unmute Mic" : "Mute Mic"}
         </button>
 
         <button
           onClick={toggleCamera}
-          data-test-id="toggle-camera-button"
-          className="px-4 py-2 bg-blue-500 text-white rounded"
+          style={{
+            padding: "10px 20px",
+            background: "#3b82f6",
+            color: "white",
+            border: "none",
+            borderRadius: "6px",
+            cursor: "pointer",
+          }}
         >
           Toggle Camera
         </button>
 
         <button
           onClick={hangUp}
-          data-test-id="hangup-button"
-          className="px-4 py-2 bg-black text-white rounded"
+          style={{
+            padding: "10px 20px",
+            background: "black",
+            color: "white",
+            border: "none",
+            borderRadius: "6px",
+            cursor: "pointer",
+          }}
         >
           Hang Up
         </button>
-
       </div>
 
-      <div className="mt-6">
-
+      <div
+        style={{
+          width: "420px",
+          background: "white",
+          borderRadius: "10px",
+          padding: "10px",
+          boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
+        }}
+      >
         <div
-          data-test-id="chat-log"
-          className="border p-2 h-40 overflow-y-auto"
+          style={{
+            height: "150px",
+            overflowY: "auto",
+            border: "1px solid #ddd",
+            padding: "8px",
+            marginBottom: "10px",
+          }}
         >
           {messages.map((msg, i) => (
-            <div key={i} data-test-id="chat-message">
-              {msg}
-            </div>
+            <div key={i}>{msg}</div>
           ))}
         </div>
 
-        <div className="flex mt-2 gap-2">
-
+        <div style={{ display: "flex", gap: "10px" }}>
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            data-test-id="chat-input"
-            className="border p-2 flex-1"
             placeholder="Type message..."
+            style={{
+              flex: 1,
+              padding: "8px",
+              border: "1px solid #ccc",
+              borderRadius: "5px",
+            }}
           />
 
           <button
             onClick={sendMessage}
-            data-test-id="chat-submit"
-            className="px-4 py-2 bg-green-500 text-white rounded"
+            style={{
+              padding: "8px 15px",
+              background: "#10b981",
+              color: "white",
+              border: "none",
+              borderRadius: "5px",
+              cursor: "pointer",
+            }}
           >
             Send
           </button>
-
         </div>
-
       </div>
-
     </div>
   );
 }
