@@ -165,27 +165,26 @@ http://localhost:3000/room/test
 Open the same URL in another browser tab to start a video call.
 
 ---
+## 📂 Project Structure
 
-## Project Structure
-
+```
 webrtc-video-chat
-
-app/
 │
-├── room/
-│   └── [roomId]/
-│       └── page.tsx
+├── app
+│   ├── room
+│   │   └── [roomId]
+│   │       └── page.tsx
+│   │
+│   ├── layout.tsx
+│   ├── page.tsx
+│   └── globals.css
 │
-├── layout.tsx
-├── page.tsx
-└── globals.css
-
-server.ts  
-docker-compose.yml  
-Dockerfile  
-package.json  
-
----
+├── server.ts
+├── docker-compose.yml
+├── Dockerfile
+├── package.json
+└── README.md
+```
 
 ## Conclusion
 
